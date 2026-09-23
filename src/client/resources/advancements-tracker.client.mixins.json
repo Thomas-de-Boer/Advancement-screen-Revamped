@@ -3,7 +3,8 @@
   "package": "thomas.advancementstracker.client.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "AdvancementWidgetMixin"
+    "AdvancementWidgetMixin",
+    "KeyMappingMixin"
   ],
   "injectors": {
     "defaultRequire": 1
