@@ -1,4 +1,3 @@
-// File: src/client/java/thomas/advancementstracker/client/mixin/AdvancementWidgetMixin.java
 package thomas.advancementstracker.client.mixin;
 
 import net.minecraft.advancements.AdvancementNode;
@@ -43,7 +42,7 @@ public class AdvancementWidgetMixin {
     private void onSetProgress(AdvancementProgress progress, CallbackInfo info) {
         Font font = Minecraft.getInstance().font;
         int wrapWidth = 200;
-        int maxCriteriaShown = 6; // pas dit later aan naar wat het beste uitkomt
+        int maxCriteriaShown = 6;
 
         List<FormattedCharSequence> newDescription = new ArrayList<>(font.split(this.display.description(), wrapWidth));
 

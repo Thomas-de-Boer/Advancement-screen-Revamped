@@ -3,7 +3,6 @@
   "package": "thomas.advancementstracker.client.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "ExampleClientMixin",
     "AdvancementWidgetMixin"
   ],
   "injectors": {
