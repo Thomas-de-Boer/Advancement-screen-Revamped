@@ -1,13 +1,16 @@
 package thomas.advancementstracker.client;
 
+import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementProgress;
+import net.minecraft.advancements.AdvancementRequirements;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientAdvancements;
 import net.minecraft.network.chat.Component; // GUESS: 60% — package en klasse
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.Map;
 
 public class BacapAdvancementListener implements ClientAdvancements.Listener {
@@ -54,6 +57,25 @@ public class BacapAdvancementListener implements ClientAdvancements.Listener {
         for (String criterion : progress.getRemainingCriteria()) {
             player.sendSystemMessage(Component.literal("  missing: " + criterion));
         }
+
+        Advancement advancement = holder.value(); // GUESS: 70% — methode op AdvancementHolder
+//        var requirements = advancement.requirements(); // GUESS: 40% — naam en of dit uberhaupt public is
+//
+//// De structuur is normaal een lijst van lijsten (OR-groepen binnen AND).
+//// Als een van de groepen meer dan 1 criterium heeft, is dat een OR-keuze.
+//        boolean hasOrGroup = requirements.stream().anyMatch(group -> group.size() > 1); // GUESS: 40% op de exacte vorm van 'requirements'
+
+        AdvancementRequirements requirementsWrapper = advancement.requirements(); // bevestigd: dit type bestaat (zie screenshot)
+        List<List<String>> groups = requirementsWrapper.requirements(); // GUESS: 85% — de naam "requirements()" nogmaals, nu op het wrapper-object
+
+        boolean hasOrGroup = false;
+        for (List<String> group : groups) {
+            if (group.size() > 1) {
+                hasOrGroup = true;
+                break;
+            }
+        }
+
     }
 
     @Override
