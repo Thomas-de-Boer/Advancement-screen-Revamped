@@ -4,6 +4,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.advancements.AdvancementsScreen;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 
@@ -14,10 +15,10 @@ public class ModAdvancementScreen extends Screen {
 
     @Override
     protected void init() {
-        Button buttonWidget = Button.builder(Component.literal("Hello World"), (btn) -> {
-            // When the button is clicked, we can display a toast to the screen.
-            this.minecraft.gui.toastManager().addToast(
-                    new SystemToast(SystemToast.SystemToastId.NARRATOR_TOGGLE, Component.nullToEmpty("Hello World!"), Component.nullToEmpty("This is a toast."))
+        Button buttonWidget = Button.builder(Component.literal("Open original Advancements screen"), (btn) -> {
+//            open original advancements screen if button is pressed
+            this.minecraft.gui.setScreen(
+                    new AdvancementsScreen(this.minecraft.player.connection.getAdvancements())
             );
         }).bounds(40, 40, 120, 20).build();
         // x, y, width, height
