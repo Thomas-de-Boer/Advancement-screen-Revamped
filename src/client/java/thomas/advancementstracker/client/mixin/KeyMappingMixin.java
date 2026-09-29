@@ -20,7 +20,7 @@ public abstract class KeyMappingMixin {
             Minecraft client = Minecraft.getInstance();
             if (client.player != null) {
 
-                while (client.options.keyAdvancements.isDown()) {
+                if (client.options.keyAdvancements.isDown()) {
                     Minecraft.getInstance().gui.setScreen(
                             new ModAdvancementScreen(Component.empty())
                     );
