@@ -1,6 +1,6 @@
 package thomas.advancementstracker.client;
 
-import net.fabricmc.loader.api.FabricLoader; // GUESS: 95%
+import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,7 +18,6 @@ public final class FavoritesStore {
     }
 
     private static Path file() {
-        // GUESS: 95% - getConfigDir() returns the "config" folder of the Minecraft instance
         return FabricLoader.getInstance().getConfigDir().resolve("advancementstracker-favorites.txt");
     }
 

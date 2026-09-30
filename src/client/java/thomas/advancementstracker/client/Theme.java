@@ -1,6 +1,5 @@
 package thomas.advancementstracker.client;
 
-import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethodStage;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -275,15 +274,15 @@ public record Theme(
 
     public static final Theme DIAMOND = new Theme(
             "Diamond",
-            0xFF60CCD9, // frame (veel lichter diamantblauw)
-            0xFF1E525A, // well (donkerder voor diepte)
+            0xFF60CCD9,
+            0xFF1E525A, // well
             0xFF3BA1B0, // row
-            0xFF1A8C9E, // rowSelected (duidelijke selectiegloed)
+            0xFF1A8C9E, // rowSelected
             0xFF358C99, // tab
-            0xFF00F0FF, // tabSelected (fel cyaan dat er direct uitpopt)
+            0xFF00F0FF, // tabSelected
             0xFF358C99, // button
             0xFF51AABC, // buttonHover
-            0xFF103338, // slotBg (donker voor goed contrast met items)
+            0xFF103338, // slotBg
             0xFFA3F3FC, // frameHi
             0xFF348691, // frameLo
             0xFF4FB0BF, // wellHi
@@ -292,30 +291,22 @@ public record Theme(
             0xFF276A75, // plateLo
             0xFF184952, // frameBorder
             0xFF205B63, // border
-
-            // Text (donker op de lichte frame, licht op donkere knoppen)
-            0xFF0A292E, // title (donker voor contrast op lichte frame)
+            0xFF0A292E, // title
             0xFF0D333A, // label
             0xFFFFFFFF, // tabText
-            0xFF000000, // tabSelectedText (zwarte tekst op fel cyaan)
+            0xFF000000, // tabSelectedText
             0xFFFFFFFF, // buttonText
             0xFFFFFFFF, // progressLabel
             0xFF2C6873, // muted
-
-            // Status
             0xFF5EE08A, // done
             0xFF00F0FF, // progress
             0xFFB5E8EF, // none
             0xFF133A40, // progressBg
             0xFF1C636E, // progressTrackRing
-
-            // Favorite
             0xFF00F0FF, // favorite
             0xFF008094, // favoriteOutline
             0xFF163E44, // favoriteEmptyFill
             0xFF2C717C, // favoriteEmpty
-
-            // Scrollbar
             0xFF103338, // scrollbarTrack
             0xFF51AABC  // scrollbarThumb
     );
@@ -326,9 +317,9 @@ public record Theme(
             0xFF2D2830, // frame
             0xFF121014, // well
             0xFF1F1C21, // row
-            0xFF5E4366, // rowSelected (feller paarse gloed)
+            0xFF5E4366, // rowSelected
             0xFF28232B, // tab
-            0xFFB062C4, // tabSelected (helder Netherite-paars dat direct opvalt)
+            0xFFB062C4, // tabSelected
             0xFF28232B, // button
             0xFF453D4A, // buttonHover
             0xFF0A090B, // slotBg
@@ -348,7 +339,7 @@ public record Theme(
             0xFFFFFFFF, // progressLabel
             0xFF9E94A3, // muted
             0xFF5EE08A, // done
-            0xFFC778DD, // progress (feller paars/magenta)
+            0xFFC778DD, // progress
             0xFFD3CAD6, // none
             0xFF151217, // progressBg
             0xFF4A3452, // progressTrackRing

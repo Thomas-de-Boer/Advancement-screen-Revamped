@@ -223,7 +223,6 @@ public class ModAdvancementScreen extends Screen {
     private Set<String> remainingOf(AdvancementNode node) {
         AdvancementProgress progress = this.progressByNode.get(node);
         if (progress == null) {
-            // No progress known yet: nothing is done
             return new HashSet<>(node.advancement().requirements().names());
         }
         Set<String> remaining = new HashSet<>();
@@ -232,7 +231,6 @@ public class ModAdvancementScreen extends Screen {
     }
 
     private List<List<String>> groupsOf(AdvancementNode node) {
-        // Each inner list is one group: one of its criteria is enough (OR). A group of size 1 is a normal criterion.
         return node.advancement().requirements().requirements();
     }
 
@@ -336,25 +334,22 @@ public class ModAdvancementScreen extends Screen {
         graphics.outline(x, y, w, h, this.theme.border());
 
         int topLeft = sunken ? shadow : highlight;
-        int bottomRight = sunken ? highlight : shadow;
         int t = 2;
 
         graphics.fill(x + 1, y + 1, x + w - 1, y + 1 + t, topLeft);
         graphics.fill(x + 1, y + 1, x + 1 + t, y + h - 1, topLeft);
-//        graphics.fill(x + 1, y + h - 1 - t, x + w - 1, y + h - 1, bottomRight);
-//        graphics.fill(x + w - 1 - t, y + 1, x + w - 1, y + h - 1, bottomRight);
     }
 
-    private boolean isInside(double mouseX, double mouseY, int x, int y, int w, int h) {
-        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+    private boolean isInside(double mouseX, double mouseY, int x, int y, int w) {
+        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + ModAdvancementScreen.HEADER_BUTTON_HEIGHT;
     }
 
-    private void drawButton(GuiGraphicsExtractor graphics, int x, int y, int w, int h, String label, boolean hovered) {
-        drawBevelPanel(graphics, x, y, w, h, hovered ? this.theme.buttonHover() : this.theme.button(),
+    private void drawButton(GuiGraphicsExtractor graphics, int x, int y, int w, String label, boolean hovered) {
+        drawBevelPanel(graphics, x, y, w, ModAdvancementScreen.HEADER_BUTTON_HEIGHT, hovered ? this.theme.buttonHover() : this.theme.button(),
                 this.theme.plateHi(), this.theme.plateLo(), false);
         graphics.text(this.font, label,
                 x + (w - this.font.width(label)) / 2,
-                y + (h - this.font.lineHeight) / 2,
+                y + (ModAdvancementScreen.HEADER_BUTTON_HEIGHT - this.font.lineHeight) / 2,
                 this.theme.buttonText(), false);
     }
 
@@ -429,15 +424,15 @@ public class ModAdvancementScreen extends Screen {
 
         graphics.text(this.font, this.getTitle(), this.panelX + 8, this.panelY + (BUTTON_ROW_HEIGHT - this.font.lineHeight) / 2, this.theme.title(), false);
 
-        drawButton(graphics, this.statusButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT,
+        drawButton(graphics, this.statusButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH,
                 this.statusFilter.label,
-                isInside(mouseX, mouseY, this.statusButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT));
-        drawButton(graphics, this.themeButtonX, this.headerButtonY, THEME_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT,
+                isInside(mouseX, mouseY, this.statusButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH));
+        drawButton(graphics, this.themeButtonX, this.headerButtonY, THEME_BUTTON_WIDTH,
                 "Theme: " + this.theme.name(),
-                isInside(mouseX, mouseY, this.themeButtonX, this.headerButtonY, THEME_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT));
-        drawButton(graphics, this.vanillaButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT,
+                isInside(mouseX, mouseY, this.themeButtonX, this.headerButtonY, THEME_BUTTON_WIDTH));
+        drawButton(graphics, this.vanillaButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH,
                 "Vanilla screen",
-                isInside(mouseX, mouseY, this.vanillaButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT));
+                isInside(mouseX, mouseY, this.vanillaButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH));
 
         drawBevelPanel(graphics, this.tabsX, this.tabsY, this.tabsWidth, this.tabsBottom - this.tabsY,
                 this.theme.well(), this.theme.wellHi(), this.theme.wellLo(), true);
@@ -556,7 +551,6 @@ public class ModAdvancementScreen extends Screen {
         int contentBottom = this.listBottom - 2;
         int y = barY + PROGRESS_BAR_HEIGHT + 6;
 
-        // --- Fixed part: description + type ---
         for (FormattedCharSequence line : this.font.split(display.description(), wrapWidth)) {
             graphics.text(this.font, line, this.detailX + 8, y, this.theme.muted(), false);
             y += LINE_HEIGHT;
@@ -564,7 +558,6 @@ public class ModAdvancementScreen extends Screen {
         graphics.text(this.font, "Type: " + typeLabel(display.type()), this.detailX + 8, y, this.theme.label(), false);
         y += LINE_HEIGHT + 4;
 
-        // --- Fixed part: criteria header + "missing only" toggle ---
         graphics.text(this.font, "Criteria (" + counts[0] + "/" + counts[1] + "):",
                 this.detailX + 8, y + (TOGGLE_HEIGHT - this.font.lineHeight) / 2, this.theme.label(), false);
 
@@ -581,7 +574,6 @@ public class ModAdvancementScreen extends Screen {
                 this.missingOnly ? this.theme.tabSelectedText() : this.theme.buttonText(), false);
         y += TOGGLE_HEIGHT + 4;
 
-        // --- Scrolling part: only the criteria ---
         int areaTop = y;
         int areaHeight = Math.max(0, contentBottom - areaTop);
         int textWidth = wrapWidth - SCROLLBAR_WIDTH - 4;
@@ -601,7 +593,6 @@ public class ModAdvancementScreen extends Screen {
         }
         graphics.disableScissor();
 
-        // --- Scrollbar (only when there is something to scroll) ---
         if (maxScroll > 0) {
             int trackX = panelRight - SCROLLBAR_WIDTH - 4;
             graphics.fill(trackX, areaTop, trackX + SCROLLBAR_WIDTH, areaTop + areaHeight, this.theme.scrollbarTrack());
@@ -621,12 +612,10 @@ public class ModAdvancementScreen extends Screen {
             if (this.missingOnly && groupDone) continue;
 
             if (group.size() == 1) {
-                // Normal criterion (AND)
                 String criterion = group.getFirst();
                 addWrapped(lines, (groupDone ? "[x] " : "[ ] ") + humanizeCriterion(criterion),
                         width, 0, groupDone ? this.theme.done() : this.theme.none());
             } else {
-                // OR group: only ONE of these is needed
                 addWrapped(lines, (groupDone ? "[x] " : "[ ] ") + "Any one of:",
                         width, 0, groupDone ? this.theme.done() : this.theme.none());
                 for (String criterion : group) {
@@ -662,19 +651,19 @@ public class ModAdvancementScreen extends Screen {
             return true;
         }
 
-        if (isInside(mouseX, mouseY, this.statusButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT)) {
+        if (isInside(mouseX, mouseY, this.statusButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH)) {
             this.statusFilter = this.statusFilter.next();
             this.listScrollOffset = 0;
             return true;
         }
 
-        if (isInside(mouseX, mouseY, this.themeButtonX, this.headerButtonY, THEME_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT)) {
+        if (isInside(mouseX, mouseY, this.themeButtonX, this.headerButtonY, THEME_BUTTON_WIDTH)) {
             this.theme = this.theme.next();
             this.theme.save();
             return true;
         }
 
-        if (isInside(mouseX, mouseY, this.vanillaButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT)) {
+        if (isInside(mouseX, mouseY, this.vanillaButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH)) {
             assert this.minecraft.player != null;
             this.minecraft.gui.setScreen(
                     new AdvancementsScreen(this.minecraft.player.connection.getAdvancements())

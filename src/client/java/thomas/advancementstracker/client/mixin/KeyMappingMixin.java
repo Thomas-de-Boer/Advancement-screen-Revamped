@@ -27,8 +27,6 @@ public abstract class KeyMappingMixin {
                 }
 
             }
-
-            // Return false to tell the game the key wasn't "clicked" by vanilla standards
             cir.setReturnValue(false);
         }
     }
