@@ -1,11 +1,11 @@
 {
 	"schemaVersion": 1,
-	"id": "advancements-tracker",
+	"id": "advancement-screen-revamped",
 	"version": "${version}",
-	"name": "Advancements Tracker",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "Advancement screen Revamped",
+	"description": "A client-side replacement for the advancements screen with search, filters and a detailed view of which criteria you have completed and which are still missing. Works with BACAP.",
 	"authors": [
-		"Me!"
+		"Gify44"
 	],
 	"contact": {
 		"homepage": "https://fabricmc.net/",
@@ -15,15 +15,11 @@
 	"icon": "assets/advancements-tracker/icon.png",
 	"environment": "client",
 	"entrypoints": {
-		"main": [
-			"thomas.advancementstracker.AdvancementsTracker"
-		],
 		"client": [
-			"thomas.advancementstracker.client.AdvancementsTrackerClient"
+			"com.advancementstracker.client.AdvancementsTrackerClient"
 		]
 	},
 	"mixins": [
-		"advancements-tracker.mixins.json",
 		{
 			"config": "advancements-tracker.client.mixins.json",
 			"environment": "client"

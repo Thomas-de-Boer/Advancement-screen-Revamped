@@ -1,4 +1,4 @@
-package thomas.advancementstracker.client.mixin;
+package com.advancementstracker.client.mixin;
 
 import net.minecraft.advancements.AdvancementNode;
 import net.minecraft.advancements.AdvancementProgress;

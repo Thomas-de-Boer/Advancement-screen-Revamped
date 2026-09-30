@@ -1,4 +1,4 @@
-package thomas.advancementstracker.client;
+package com.advancementstracker.client;
 
 import net.minecraft.advancements.*;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

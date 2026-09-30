@@ -1,4 +1,4 @@
-package thomas.advancementstracker.client;
+package com.advancementstracker.client;
 
 import net.fabricmc.api.ClientModInitializer;
 
