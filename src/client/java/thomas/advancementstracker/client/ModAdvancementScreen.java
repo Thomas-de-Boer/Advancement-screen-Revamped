@@ -2,7 +2,6 @@ package thomas.advancementstracker.client;
 
 import net.minecraft.advancements.*;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.advancements.AdvancementsScreen;
@@ -41,30 +40,7 @@ public class ModAdvancementScreen extends Screen {
     private static int lastDetailScrollOffset = 0;
     private static int lastTabsScrollOffset = 0;
     private static String lastSearchQuery = "";
-
-    private static final int FRAME_COLOR = 0xFFC6C6C6;
-    private static final int WELL_COLOR = 0xFF262626;
-    private static final int TITLE_COLOR = 0xFF404040;
-    private static final int ROW_COLOR = 0xFF3D3D3D;
-    private static final int ROW_SELECTED_COLOR = 0xFF4A4A6E;
-    private static final int TAB_COLOR = 0xFF6E6E6E;
-    private static final int TAB_SELECTED_COLOR = 0xFFE2E2E2;
-    private static final int TAB_SELECTED_TEXT_COLOR = 0xFF404040;
-    private static final int DONE_COLOR = 0xFF55FF55;
-    private static final int PROGRESS_COLOR = 0xFFFFFF55;
-    private static final int NONE_COLOR = 0xFFD0D0D0;
-    private static final int MUTED_COLOR = 0xFFAAAAAA;
-    private static final int SLOT_BG_COLOR = 0xFF171717;
-    private static final int FAVORITE_COLOR = 0xFFFFD700;
-    private static final int FAVORITE_EMPTY_COLOR = 0xFF555555;
-
-    private static final int FRAME_HI = 0xFFFFFFFF;
-    private static final int FRAME_LO = 0xFF555555;
-    private static final int WELL_HI = 0xFFFFFFFF;
-    private static final int WELL_LO = 0xFF373737;
-    private static final int PLATE_HI = 0xFF6E6E6E;
-    private static final int PLATE_LO = 0xFF1C1C1C;
-    private static final int PROGRESS_TRACK_RING = 0xFF3A3A3A;
+    private static boolean lastMissingOnly = false;
 
     private static final int BUTTON_ROW_HEIGHT = 26;
     private static final int SEARCH_ROW_HEIGHT = 24;
@@ -83,14 +59,23 @@ public class ModAdvancementScreen extends Screen {
     private static final int PROGRESS_BAR_HEIGHT = 14;
     private static final int WELL_TOP_PADDING = 2;
     private static final int TEXT_PADDING_RIGHT = 6;
+    private static final int HEADER_BUTTON_WIDTH = 140;
+    private static final int THEME_BUTTON_WIDTH = 110;
+    private static final int HEADER_BUTTON_HEIGHT = 20;
+    private static final int SCROLLBAR_WIDTH = 6;
+    private static final int TOGGLE_HEIGHT = 14;
 
     private static final long MARQUEE_PAUSE_MS = 800;
     private static final long MARQUEE_SCROLL_MS = 2500;
+
+    private record CriteriaLine(FormattedCharSequence text, int color, int indent) { }
 
     private final List<AdvancementNode> allAdvancements = new ArrayList<>();
     private final Map<AdvancementNode, AdvancementProgress> progressByNode = new LinkedHashMap<>();
     private final Map<AdvancementHolder, AdvancementNode> rootsByHolder = new LinkedHashMap<>();
     private final List<AdvancementHolder> categories = new ArrayList<>();
+
+    private Theme theme;
 
     private AdvancementNode selectedNode;
     private int listScrollOffset;
@@ -98,27 +83,21 @@ public class ModAdvancementScreen extends Screen {
     private int tabsScrollOffset;
     private StatusFilter statusFilter;
     private int selection = 0;
+    private boolean missingOnly;
 
     private EditBox searchBox;
 
-    private record CriteriaLine(FormattedCharSequence text, int color, int indent) { }
-
-    private static boolean lastMissingOnly = false;
-
-    private static final int SCROLLBAR_WIDTH = 6;
-    private static final int TOGGLE_HEIGHT = 14;
-
-    private boolean missingOnly;
     private int toggleX, toggleY, toggleW, toggleH;
-
     private int panelX, panelY, panelWidth, panelHeight;
     private int tabsX, tabsY, tabsWidth, tabsBottom;
+    private int statusButtonX, themeButtonX, vanillaButtonX, headerButtonY;
     private int listX, listY, listWidth, listBottom;
     private int detailX;
     private int detailWidth;
 
     public ModAdvancementScreen(Component title) {
         super(title);
+        this.theme = Theme.load();
         this.statusFilter = lastStatusFilter;
         this.listScrollOffset = lastListScrollOffset;
         this.detailScrollOffset = lastDetailScrollOffset;
@@ -146,28 +125,10 @@ public class ModAdvancementScreen extends Screen {
         this.detailX = this.listX + this.listWidth + 2;
         this.detailWidth = this.panelX + this.panelWidth - this.detailX;
 
-        int buttonWidth = 140;
-
-        Button statusButton = Button.builder(
-                Component.literal(this.statusFilter.label),
-                (btn) -> {
-                    this.statusFilter = this.statusFilter.next();
-                    btn.setMessage(Component.literal(this.statusFilter.label));
-                    this.listScrollOffset = 0;
-                }
-        ).bounds(this.panelX + 4, this.panelY + 3, buttonWidth, 20).build();
-        this.addRenderableWidget(statusButton);
-
-        Button backToVanillaButton = Button.builder(
-                Component.literal("Vanilla screen"),
-                (_) -> {
-                    assert this.minecraft.player != null;
-                    this.minecraft.gui.setScreen(
-                            new AdvancementsScreen(this.minecraft.player.connection.getAdvancements())
-                    );
-                }
-        ).bounds(this.panelX + this.panelWidth - buttonWidth - 4, this.panelY + 3, buttonWidth, 20).build();
-        this.addRenderableWidget(backToVanillaButton);
+        this.statusButtonX = this.panelX + 4;
+        this.vanillaButtonX = this.panelX + this.panelWidth - HEADER_BUTTON_WIDTH - 4;
+        this.themeButtonX = this.vanillaButtonX - 4 - THEME_BUTTON_WIDTH;
+        this.headerButtonY = this.panelY + 3;
 
         this.searchBox = new EditBox(
                 this.font,
@@ -252,11 +213,11 @@ public class ModAdvancementScreen extends Screen {
     }
 
     private boolean isFavorite(AdvancementHolder holder) {
-        return FavoritesStore.contains(holder.id().toString()); // GUESS: 90% holder.id()
+        return FavoritesStore.contains(holder.id().toString());
     }
 
     private void toggleFavorite(AdvancementHolder holder) {
-        FavoritesStore.toggle(holder.id().toString()); // GUESS: 90% holder.id()
+        FavoritesStore.toggle(holder.id().toString());
     }
 
     private Set<String> remainingOf(AdvancementNode node) {
@@ -304,9 +265,9 @@ public class ModAdvancementScreen extends Screen {
 
     private int colorFor(Status status) {
         return switch (status) {
-            case DONE -> DONE_COLOR;
-            case IN_PROGRESS -> PROGRESS_COLOR;
-            case NONE -> NONE_COLOR;
+            case DONE -> this.theme.done();
+            case IN_PROGRESS -> this.theme.progress();
+            case NONE -> this.theme.none();
         };
     }
 
@@ -372,7 +333,7 @@ public class ModAdvancementScreen extends Screen {
 
     private void drawBevelPanel(GuiGraphicsExtractor graphics, int x, int y, int w, int h, int baseColor, int highlight, int shadow, boolean sunken) {
         graphics.fill(x, y, x + w, y + h, baseColor);
-        graphics.outline(x, y, w, h, 0xFF000000);
+        graphics.outline(x, y, w, h, this.theme.border());
 
         int topLeft = sunken ? shadow : highlight;
         int bottomRight = sunken ? highlight : shadow;
@@ -384,21 +345,34 @@ public class ModAdvancementScreen extends Screen {
 //        graphics.fill(x + w - 1 - t, y + 1, x + w - 1, y + h - 1, bottomRight);
     }
 
+    private boolean isInside(double mouseX, double mouseY, int x, int y, int w, int h) {
+        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+    }
+
+    private void drawButton(GuiGraphicsExtractor graphics, int x, int y, int w, int h, String label, boolean hovered) {
+        drawBevelPanel(graphics, x, y, w, h, hovered ? this.theme.buttonHover() : this.theme.button(),
+                this.theme.plateHi(), this.theme.plateLo(), false);
+        graphics.text(this.font, label,
+                x + (w - this.font.width(label)) / 2,
+                y + (h - this.font.lineHeight) / 2,
+                this.theme.buttonText(), false);
+    }
+
     private void drawIconSlot(GuiGraphicsExtractor graphics, int x, int y, net.minecraft.world.item.ItemStack item, int statusColor) {
-        graphics.fill(x - 2, y - 2, x + ICON_SIZE + 2, y + ICON_SIZE + 2, SLOT_BG_COLOR);
+        graphics.fill(x - 2, y - 2, x + ICON_SIZE + 2, y + ICON_SIZE + 2, this.theme.slotBg());
         graphics.outline(x - 2, y - 2, ICON_SIZE + 4, ICON_SIZE + 4, statusColor);
         graphics.item(item, x, y);
     }
 
     private void drawFavoriteStar(GuiGraphicsExtractor graphics, int x, int y, int size, boolean isFavorite) {
-        graphics.fill(x, y, x + size, y + size, isFavorite ? FAVORITE_COLOR : 0xFF222222);
-        graphics.outline(x, y, size, size, isFavorite ? 0xFF806000 : FAVORITE_EMPTY_COLOR);
+        graphics.fill(x, y, x + size, y + size, isFavorite ? this.theme.favorite() : this.theme.favoriteEmptyFill());
+        graphics.outline(x, y, size, size, isFavorite ? this.theme.favoriteOutline() : this.theme.favoriteEmpty());
     }
 
     private void drawProgressBar(GuiGraphicsExtractor graphics, int x, int y, int width, int done, int total, Status status) {
-        graphics.fill(x, y, x + width, y + PROGRESS_BAR_HEIGHT, 0xFF151515);
-        graphics.outline(x, y, width, PROGRESS_BAR_HEIGHT, 0xFF000000);
-        graphics.outline(x + 1, y + 1, width - 2, PROGRESS_BAR_HEIGHT - 2, PROGRESS_TRACK_RING);
+        graphics.fill(x, y, x + width, y + PROGRESS_BAR_HEIGHT, this.theme.progressBg());
+        graphics.outline(x, y, width, PROGRESS_BAR_HEIGHT, this.theme.border());
+        graphics.outline(x + 1, y + 1, width - 2, PROGRESS_BAR_HEIGHT - 2, this.theme.progressTrackRing());
 
         float fraction = total == 0 ? 0f : (float) done / total;
         int fillWidth = Math.max(0, (int) ((width - 6) * fraction));
@@ -408,7 +382,7 @@ public class ModAdvancementScreen extends Screen {
 
         String label = done + "/" + total;
         int labelY = y + (PROGRESS_BAR_HEIGHT - this.font.lineHeight) / 2;
-        graphics.text(this.font, label, x + width - this.font.width(label) - 4, labelY, 0xFFFFFFFF, true);
+        graphics.text(this.font, label, x + width - this.font.width(label) - 4, labelY, this.theme.progressLabel(), true);
     }
 
     private String typeLabel(AdvancementType type) {
@@ -448,15 +422,29 @@ public class ModAdvancementScreen extends Screen {
     public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         int panelRight = this.panelX + this.panelWidth;
 
-        drawBevelPanel(graphics, this.panelX, this.panelY, this.panelWidth, this.panelHeight, FRAME_COLOR, FRAME_HI, FRAME_LO, false);
+        drawBevelPanel(graphics, this.panelX, this.panelY, this.panelWidth, this.panelHeight,
+                this.theme.frame(), this.theme.frameHi(), this.theme.frameLo(), false);
 
         super.extractRenderState(graphics, mouseX, mouseY, delta);
 
-        graphics.text(this.font, this.getTitle(), this.panelX + 8, this.panelY + (BUTTON_ROW_HEIGHT - this.font.lineHeight) / 2, TITLE_COLOR, false);
+        graphics.text(this.font, this.getTitle(), this.panelX + 8, this.panelY + (BUTTON_ROW_HEIGHT - this.font.lineHeight) / 2, this.theme.title(), false);
 
-        drawBevelPanel(graphics, this.tabsX, this.tabsY, this.tabsWidth, this.tabsBottom - this.tabsY, WELL_COLOR, WELL_HI, WELL_LO, true);
-        drawBevelPanel(graphics, this.listX, this.listY, this.listWidth, this.listBottom - this.listY, WELL_COLOR, WELL_HI, WELL_LO, true);
-        drawBevelPanel(graphics, this.detailX, this.listY, panelRight - this.detailX, this.listBottom - this.listY, WELL_COLOR, WELL_HI, WELL_LO, true);
+        drawButton(graphics, this.statusButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT,
+                this.statusFilter.label,
+                isInside(mouseX, mouseY, this.statusButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT));
+        drawButton(graphics, this.themeButtonX, this.headerButtonY, THEME_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT,
+                "Theme: " + this.theme.name(),
+                isInside(mouseX, mouseY, this.themeButtonX, this.headerButtonY, THEME_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT));
+        drawButton(graphics, this.vanillaButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT,
+                "Vanilla screen",
+                isInside(mouseX, mouseY, this.vanillaButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT));
+
+        drawBevelPanel(graphics, this.tabsX, this.tabsY, this.tabsWidth, this.tabsBottom - this.tabsY,
+                this.theme.well(), this.theme.wellHi(), this.theme.wellLo(), true);
+        drawBevelPanel(graphics, this.listX, this.listY, this.listWidth, this.listBottom - this.listY,
+                this.theme.well(), this.theme.wellHi(), this.theme.wellLo(), true);
+        drawBevelPanel(graphics, this.detailX, this.listY, panelRight - this.detailX, this.listBottom - this.listY,
+                this.theme.well(), this.theme.wellHi(), this.theme.wellLo(), true);
 
         renderTabs(graphics);
         renderList(graphics);
@@ -464,10 +452,10 @@ public class ModAdvancementScreen extends Screen {
         if (this.selectedNode != null) {
             renderDetailPanel(graphics, panelRight);
         } else {
-            graphics.text(this.font, Component.literal("Select an advancement on the left."), this.detailX + 8, this.listY + 8, MUTED_COLOR, false);
+            graphics.text(this.font, Component.literal("Select an advancement on the left."), this.detailX + 8, this.listY + 8, this.theme.muted(), false);
         }
 
-        graphics.outline(this.panelX, this.panelY, this.panelWidth, this.panelHeight, 0xFF000000);
+        graphics.outline(this.panelX, this.panelY, this.panelWidth, this.panelHeight, this.theme.frameBorder());
     }
 
     private void renderTabs(GuiGraphicsExtractor graphics) {
@@ -489,10 +477,11 @@ public class ModAdvancementScreen extends Screen {
         if (y + TAB_HEIGHT >= this.tabsY && y <= this.tabsBottom) {
             boolean isSelected = this.selection == tabIndex;
             drawBevelPanel(graphics, this.tabsX + 3, y, this.tabsWidth - 6, TAB_HEIGHT - 3,
-                    isSelected ? TAB_SELECTED_COLOR : TAB_COLOR, PLATE_HI, PLATE_LO, false);
+                    isSelected ? this.theme.tabSelected() : this.theme.tab(),
+                    this.theme.plateHi(), this.theme.plateLo(), false);
 
             int[] counts = tabCounts(tabIndex);
-            int textColor = isSelected ? TAB_SELECTED_TEXT_COLOR : 0xFFFFFFFF;
+            int textColor = isSelected ? this.theme.tabSelectedText() : this.theme.tabText();
 
             if (categoryOrNull != null) {
                 AdvancementNode root = this.rootsByHolder.get(categoryOrNull);
@@ -523,7 +512,8 @@ public class ModAdvancementScreen extends Screen {
                 boolean isSelected = node == this.selectedNode;
 
                 drawBevelPanel(graphics, this.listX + 2, y, this.listWidth - 4, ROW_HEIGHT - 2,
-                        isSelected ? ROW_SELECTED_COLOR : ROW_COLOR, PLATE_HI, PLATE_LO, false);
+                        isSelected ? this.theme.rowSelected() : this.theme.row(),
+                        this.theme.plateHi(), this.theme.plateLo(), false);
 
                 int starX = this.listX + 6;
                 int starY = y + (ROW_HEIGHT - 2 - STAR_SIZE) / 2;
@@ -568,15 +558,15 @@ public class ModAdvancementScreen extends Screen {
 
         // --- Fixed part: description + type ---
         for (FormattedCharSequence line : this.font.split(display.description(), wrapWidth)) {
-            graphics.text(this.font, line, this.detailX + 8, y, MUTED_COLOR, false);
+            graphics.text(this.font, line, this.detailX + 8, y, this.theme.muted(), false);
             y += LINE_HEIGHT;
         }
-        graphics.text(this.font, "Type: " + typeLabel(display.type()), this.detailX + 8, y, TITLE_COLOR, false);
+        graphics.text(this.font, "Type: " + typeLabel(display.type()), this.detailX + 8, y, this.theme.label(), false);
         y += LINE_HEIGHT + 4;
 
         // --- Fixed part: criteria header + "missing only" toggle ---
         graphics.text(this.font, "Criteria (" + counts[0] + "/" + counts[1] + "):",
-                this.detailX + 8, y + (TOGGLE_HEIGHT - this.font.lineHeight) / 2, TITLE_COLOR, false);
+                this.detailX + 8, y + (TOGGLE_HEIGHT - this.font.lineHeight) / 2, this.theme.label(), false);
 
         String toggleLabel = (this.missingOnly ? "[x] " : "[ ] ") + "Missing only";
         this.toggleW = this.font.width(toggleLabel) + 12;
@@ -584,10 +574,11 @@ public class ModAdvancementScreen extends Screen {
         this.toggleX = panelRight - 8 - this.toggleW;
         this.toggleY = y;
         drawBevelPanel(graphics, this.toggleX, this.toggleY, this.toggleW, this.toggleH,
-                this.missingOnly ? TAB_SELECTED_COLOR : TAB_COLOR, PLATE_HI, PLATE_LO, false);
+                this.missingOnly ? this.theme.tabSelected() : this.theme.button(),
+                this.theme.plateHi(), this.theme.plateLo(), false);
         graphics.text(this.font, toggleLabel, this.toggleX + 6,
                 this.toggleY + (this.toggleH - this.font.lineHeight + 4) / 2,
-                this.missingOnly ? TAB_SELECTED_TEXT_COLOR : 0xFFFFFFFF, false);
+                this.missingOnly ? this.theme.tabSelectedText() : this.theme.buttonText(), false);
         y += TOGGLE_HEIGHT + 4;
 
         // --- Scrolling part: only the criteria ---
@@ -613,11 +604,11 @@ public class ModAdvancementScreen extends Screen {
         // --- Scrollbar (only when there is something to scroll) ---
         if (maxScroll > 0) {
             int trackX = panelRight - SCROLLBAR_WIDTH - 4;
-            graphics.fill(trackX, areaTop, trackX + SCROLLBAR_WIDTH, areaTop + areaHeight, SLOT_BG_COLOR);
+            graphics.fill(trackX, areaTop, trackX + SCROLLBAR_WIDTH, areaTop + areaHeight, this.theme.scrollbarTrack());
             int thumbHeight = Math.max(16, areaHeight * areaHeight / contentHeight);
             int thumbY = areaTop + (int) ((long) (areaHeight - thumbHeight) * this.detailScrollOffset / maxScroll);
-            graphics.fill(trackX, thumbY, trackX + SCROLLBAR_WIDTH, thumbY + thumbHeight, FRAME_COLOR);
-            graphics.outline(trackX, thumbY, SCROLLBAR_WIDTH, thumbHeight, 0xFF000000);
+            graphics.fill(trackX, thumbY, trackX + SCROLLBAR_WIDTH, thumbY + thumbHeight, this.theme.scrollbarThumb());
+            graphics.outline(trackX, thumbY, SCROLLBAR_WIDTH, thumbHeight, this.theme.border());
         }
     }
 
@@ -633,21 +624,21 @@ public class ModAdvancementScreen extends Screen {
                 // Normal criterion (AND)
                 String criterion = group.getFirst();
                 addWrapped(lines, (groupDone ? "[x] " : "[ ] ") + humanizeCriterion(criterion),
-                        width, 0, groupDone ? DONE_COLOR : NONE_COLOR);
+                        width, 0, groupDone ? this.theme.done() : this.theme.none());
             } else {
                 // OR group: only ONE of these is needed
                 addWrapped(lines, (groupDone ? "[x] " : "[ ] ") + "Any one of:",
-                        width, 0, groupDone ? DONE_COLOR : NONE_COLOR);
+                        width, 0, groupDone ? this.theme.done() : this.theme.none());
                 for (String criterion : group) {
                     boolean optionDone = !remaining.contains(criterion);
-                    int color = optionDone ? DONE_COLOR : (groupDone ? MUTED_COLOR : NONE_COLOR);
+                    int color = optionDone ? this.theme.done() : (groupDone ? this.theme.muted() : this.theme.none());
                     addWrapped(lines, "- " + humanizeCriterion(criterion), width - 10, 10, color);
                 }
             }
         }
 
         if (lines.isEmpty()) {
-            addWrapped(lines, this.missingOnly ? "Nothing missing!" : "No criteria.", width, 0, MUTED_COLOR);
+            addWrapped(lines, this.missingOnly ? "Nothing missing!" : "No criteria.", width, 0, this.theme.muted());
         }
         return lines;
     }
@@ -668,6 +659,26 @@ public class ModAdvancementScreen extends Screen {
                 && mouseY >= this.toggleY && mouseY < this.toggleY + this.toggleH) {
             this.missingOnly = !this.missingOnly;
             this.detailScrollOffset = 0;
+            return true;
+        }
+
+        if (isInside(mouseX, mouseY, this.statusButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT)) {
+            this.statusFilter = this.statusFilter.next();
+            this.listScrollOffset = 0;
+            return true;
+        }
+
+        if (isInside(mouseX, mouseY, this.themeButtonX, this.headerButtonY, THEME_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT)) {
+            this.theme = this.theme.next();
+            this.theme.save();
+            return true;
+        }
+
+        if (isInside(mouseX, mouseY, this.vanillaButtonX, this.headerButtonY, HEADER_BUTTON_WIDTH, HEADER_BUTTON_HEIGHT)) {
+            assert this.minecraft.player != null;
+            this.minecraft.gui.setScreen(
+                    new AdvancementsScreen(this.minecraft.player.connection.getAdvancements())
+            );
             return true;
         }
 
