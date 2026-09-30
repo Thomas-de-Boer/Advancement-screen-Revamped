@@ -74,6 +74,7 @@ public record Theme(
             0xFF8B8B8B  // scrollbarThumb
     );
 
+
     public static final Theme LAPIS = new Theme(
             "Lapis",
             0xFF172B52, // frame
@@ -116,41 +117,41 @@ public record Theme(
 
     public static final Theme REDSTONE = new Theme(
             "Redstone",
-            0xFF4A160E, // frame
-            0xFF1C0703, // well
-            0xFF350D07, // row
-            0xFF9E210E, // rowSelected
-            0xFF67180B, // tab
-            0xFFE62008, // tabSelected
-            0xFF67180B, // button
-            0xFF8B2814, // buttonHover
-            0xFF130503, // slotBg
-            0xFF81311B, // frameHi
-            0xFF2B0A05, // frameLo
-            0xFF6D1D0C, // wellHi
-            0xFF100402, // wellLo
-            0xFF96351A, // plateHi
-            0xFF210805, // plateLo
+            0xFF3A0E08, // frame
+            0xFF160403, // well
+            0xFF280806, // row
+            0xFF7D170E, // rowSelected
+            0xFF3B0B07, // tab
+            0xFFD52A16, // tabSelected
+            0xFF3B0B07, // button
+            0xFF64150D, // buttonHover
+            0xFF0D0302, // slotBg
+            0xFF6B1B12, // frameHi
+            0xFF210604, // frameLo
+            0xFF5A160E, // wellHi
+            0xFF0A0201, // wellLo
+            0xFF721D13, // plateHi
+            0xFF190504, // plateLo
             0xFF080201, // frameBorder
-            0xFF090301, // border
-            0xFFFFE2D8, // title
-            0xFFF0CFC6, // label
-            0xFFFFF2ED, // tabText
+            0xFF0D0302, // border
+            0xFFFFD7CC, // title
+            0xFFE8BDB3, // label
+            0xFFFFE6DE, // tabText
             0xFFFFFFFF, // tabSelectedText
-            0xFFFFEEE8, // buttonText
-            0xFFFFE8E0, // progressLabel
-            0xFFB58D83, // muted
-            0xFF5EE08A, // done
-            0xFFFFB52E, // progress
-            0xFFDCC5BF, // none
-            0xFF200804, // progressBg
-            0xFF711D0D, // progressTrackRing
-            0xFFFFC83D, // favorite
-            0xFF806000, // favoriteOutline
-            0xFF2C0D07, // favoriteEmptyFill
-            0xFF71362A, // favoriteEmpty
-            0xFF110402, // scrollbarTrack
-            0xFFB53A1C  // scrollbarThumb
+            0xFFFFDED5, // buttonText
+            0xFFFFD8CE, // progressLabel
+            0xFFAA7770, // muted
+            0xFF62E88C, // done
+            0xFFFF3B1F, // progress
+            0xFFC9A49D, // none
+            0xFF1D0503, // progressBg
+            0xFF68140C, // progressTrackRing
+            0xFFFF3D22, // favorite
+            0xFF8F1E12, // favoriteOutline
+            0xFF260704, // favoriteEmptyFill
+            0xFF612018, // favoriteEmpty
+            0xFF0D0302, // scrollbarTrack
+            0xFFA52B1A  // scrollbarThumb
     );
 
 
@@ -272,10 +273,95 @@ public record Theme(
             0xFF3E9B60  // scrollbarThumb
     );
 
+    public static final Theme DIAMOND = new Theme(
+            "Diamond",
+            0xFF60CCD9, // frame (veel lichter diamantblauw)
+            0xFF1E525A, // well (donkerder voor diepte)
+            0xFF3BA1B0, // row
+            0xFF1A8C9E, // rowSelected (duidelijke selectiegloed)
+            0xFF358C99, // tab
+            0xFF00F0FF, // tabSelected (fel cyaan dat er direct uitpopt)
+            0xFF358C99, // button
+            0xFF51AABC, // buttonHover
+            0xFF103338, // slotBg (donker voor goed contrast met items)
+            0xFFA3F3FC, // frameHi
+            0xFF348691, // frameLo
+            0xFF4FB0BF, // wellHi
+            0xFF103338, // wellLo
+            0xFF6BD0DD, // plateHi
+            0xFF276A75, // plateLo
+            0xFF184952, // frameBorder
+            0xFF205B63, // border
 
+            // Text (donker op de lichte frame, licht op donkere knoppen)
+            0xFF0A292E, // title (donker voor contrast op lichte frame)
+            0xFF0D333A, // label
+            0xFFFFFFFF, // tabText
+            0xFF000000, // tabSelectedText (zwarte tekst op fel cyaan)
+            0xFFFFFFFF, // buttonText
+            0xFFFFFFFF, // progressLabel
+            0xFF2C6873, // muted
+
+            // Status
+            0xFF5EE08A, // done
+            0xFF00F0FF, // progress
+            0xFFB5E8EF, // none
+            0xFF133A40, // progressBg
+            0xFF1C636E, // progressTrackRing
+
+            // Favorite
+            0xFF00F0FF, // favorite
+            0xFF008094, // favoriteOutline
+            0xFF163E44, // favoriteEmptyFill
+            0xFF2C717C, // favoriteEmpty
+
+            // Scrollbar
+            0xFF103338, // scrollbarTrack
+            0xFF51AABC  // scrollbarThumb
+    );
+
+
+    public static final Theme NETHERITE = new Theme(
+            "Netherite",
+            0xFF2D2830, // frame
+            0xFF121014, // well
+            0xFF1F1C21, // row
+            0xFF5E4366, // rowSelected (feller paarse gloed)
+            0xFF28232B, // tab
+            0xFFB062C4, // tabSelected (helder Netherite-paars dat direct opvalt)
+            0xFF28232B, // button
+            0xFF453D4A, // buttonHover
+            0xFF0A090B, // slotBg
+            0xFF4C4552, // frameHi
+            0xFF1A171C, // frameLo
+            0xFF3A3440, // wellHi
+            0xFF0A090B, // wellLo
+            0xFF574E5C, // plateHi
+            0xFF141217, // plateLo
+            0xFF070608, // frameBorder
+            0xFF080709, // border
+            0xFFFFFFFF, // title
+            0xFFEFEBF2, // label
+            0xFFEFEBF2, // tabText
+            0xFFFFFFFF, // tabSelectedText
+            0xFFEFEBF2, // buttonText
+            0xFFFFFFFF, // progressLabel
+            0xFF9E94A3, // muted
+            0xFF5EE08A, // done
+            0xFFC778DD, // progress (feller paars/magenta)
+            0xFFD3CAD6, // none
+            0xFF151217, // progressBg
+            0xFF4A3452, // progressTrackRing
+            0xFFD884ED, // favorite
+            0xFF8B429E, // favoriteOutline
+            0xFF1E1A21, // favoriteEmptyFill
+            0xFF4B4052, // favoriteEmpty
+            0xFF0A090B, // scrollbarTrack
+            0xFF5A5061  // scrollbarThumb
+    );
 
     /** All themes, in the order the button cycles through them. */
-    public static final List<Theme> ALL = List.of(VANILLA, LAPIS, REDSTONE, AMETHYST, EMERALD, RESIN);
+    public static final List<Theme> ALL = List.of(VANILLA, LAPIS, REDSTONE, AMETHYST, EMERALD, RESIN, DIAMOND, NETHERITE);
 
     public Theme next() {
         int index = ALL.indexOf(this);
