@@ -33,18 +33,14 @@ public class ModAdvancementScreen extends Screen {
         // CRITERION_OVERRIDES.put("husbandry_obtain_wandering_trader", "Trade with a Wandering Trader");
     }
 
-    // Session-only "remember where I was" state - resets on full game restart, not on screen close.
     private static StatusFilter lastStatusFilter = StatusFilter.ALL;
-    private static int lastSelection = 0; // 0 = All, 1 = Favorites, 2+ = category
+    private static int lastSelection = 0;
     private static @Nullable AdvancementHolder lastSelectedCategory = null;
     private static @Nullable AdvancementHolder lastSelectedAdvancement = null;
     private static int lastListScrollOffset = 0;
     private static int lastDetailScrollOffset = 0;
     private static int lastTabsScrollOffset = 0;
     private static String lastSearchQuery = "";
-
-    // Favorites are their own persistent set (session-only, same caveat as above).
-    private static final Set<AdvancementHolder> favoriteAdvancements = new HashSet<>();
 
     private static final int FRAME_COLOR = 0xFFC6C6C6;
     private static final int WELL_COLOR = 0xFF262626;
@@ -85,7 +81,7 @@ public class ModAdvancementScreen extends Screen {
     private static final int PANEL_MARGIN = 20;
     private static final int LINE_HEIGHT = 11;
     private static final int PROGRESS_BAR_HEIGHT = 14;
-    private static final int WELL_TOP_PADDING = 3;
+    private static final int WELL_TOP_PADDING = 2;
     private static final int TEXT_PADDING_RIGHT = 6;
 
     private static final long MARQUEE_PAUSE_MS = 800;
@@ -101,14 +97,25 @@ public class ModAdvancementScreen extends Screen {
     private int detailScrollOffset;
     private int tabsScrollOffset;
     private StatusFilter statusFilter;
-    private int selection = 0; // 0 = All, 1 = Favorites, 2+ = categories.get(selection - 2)
+    private int selection = 0;
 
-    private EditBox searchBox; // GUESS: 55% - constructor signature, see note below the code
+    private EditBox searchBox;
+
+    private record CriteriaLine(FormattedCharSequence text, int color, int indent) { }
+
+    private static boolean lastMissingOnly = false;
+
+    private static final int SCROLLBAR_WIDTH = 6;
+    private static final int TOGGLE_HEIGHT = 14;
+
+    private boolean missingOnly;
+    private int toggleX, toggleY, toggleW, toggleH;
 
     private int panelX, panelY, panelWidth, panelHeight;
     private int tabsX, tabsY, tabsWidth, tabsBottom;
     private int listX, listY, listWidth, listBottom;
-    private int detailX, detailWidth, detailContentY;
+    private int detailX;
+    private int detailWidth;
 
     public ModAdvancementScreen(Component title) {
         super(title);
@@ -116,6 +123,7 @@ public class ModAdvancementScreen extends Screen {
         this.listScrollOffset = lastListScrollOffset;
         this.detailScrollOffset = lastDetailScrollOffset;
         this.tabsScrollOffset = lastTabsScrollOffset;
+        this.missingOnly = lastMissingOnly;
     }
 
     @Override
@@ -137,7 +145,6 @@ public class ModAdvancementScreen extends Screen {
         this.listBottom = this.tabsBottom;
         this.detailX = this.listX + this.listWidth + 2;
         this.detailWidth = this.panelX + this.panelWidth - this.detailX;
-        this.detailContentY = this.listY + 64;
 
         int buttonWidth = 140;
 
@@ -162,7 +169,6 @@ public class ModAdvancementScreen extends Screen {
         ).bounds(this.panelX + this.panelWidth - buttonWidth - 4, this.panelY + 3, buttonWidth, 20).build();
         this.addRenderableWidget(backToVanillaButton);
 
-        // Search box, second header row. Constructor signature is a guess - see note below.
         this.searchBox = new EditBox(
                 this.font,
                 this.panelX + 4,
@@ -171,8 +177,9 @@ public class ModAdvancementScreen extends Screen {
                 20,
                 Component.literal("Search")
         );
-        this.searchBox.setValue(lastSearchQuery); // GUESS: 60% - setValue(String) method name
-        this.searchBox.setResponder(_ -> this.listScrollOffset = 0); // GUESS: 45% - setResponder(Consumer<String>) may not exist; see fallback note
+        this.searchBox.setValue(lastSearchQuery);
+        this.searchBox.setResponder(_ -> this.listScrollOffset = 0);
+        this.searchBox.setHint(Component.literal("Search advancements..."));
         this.addRenderableWidget(this.searchBox);
 
         if (this.allAdvancements.isEmpty()) {
@@ -206,7 +213,6 @@ public class ModAdvancementScreen extends Screen {
             this.categories.addAll(this.rootsByHolder.keySet());
             this.categories.sort(Comparator.comparing(this::rootTitle));
 
-            // Restore previous selection (All / Favorites / a specific category).
             if (lastSelection == 1) {
                 this.selection = 1;
             } else if (lastSelectedCategory != null) {
@@ -236,7 +242,8 @@ public class ModAdvancementScreen extends Screen {
         lastListScrollOffset = this.listScrollOffset;
         lastDetailScrollOffset = this.detailScrollOffset;
         lastTabsScrollOffset = this.tabsScrollOffset;
-        lastSearchQuery = this.searchBox.getValue(); // GUESS: 60% - getValue() method name
+        lastSearchQuery = this.searchBox.getValue();
+        lastMissingOnly = this.missingOnly;
     }
 
     private String rootTitle(AdvancementHolder rootHolder) {
@@ -244,33 +251,55 @@ public class ModAdvancementScreen extends Screen {
         return root.advancement().display().map(d -> d.title().getString()).orElse("Unknown");
     }
 
+    private boolean isFavorite(AdvancementHolder holder) {
+        return FavoritesStore.contains(holder.id().toString()); // GUESS: 90% holder.id()
+    }
+
     private void toggleFavorite(AdvancementHolder holder) {
-        if (!favoriteAdvancements.remove(holder)) {
-            favoriteAdvancements.add(holder);
+        FavoritesStore.toggle(holder.id().toString()); // GUESS: 90% holder.id()
+    }
+
+    private Set<String> remainingOf(AdvancementNode node) {
+        AdvancementProgress progress = this.progressByNode.get(node);
+        if (progress == null) {
+            // No progress known yet: nothing is done
+            return new HashSet<>(node.advancement().requirements().names());
         }
+        Set<String> remaining = new HashSet<>();
+        progress.getRemainingCriteria().forEach(remaining::add);
+        return remaining;
+    }
+
+    private List<List<String>> groupsOf(AdvancementNode node) {
+        // Each inner list is one group: one of its criteria is enough (OR). A group of size 1 is a normal criterion.
+        return node.advancement().requirements().requirements();
+    }
+
+    private boolean isGroupDone(List<String> group, Set<String> remaining) {
+        for (String criterion : group) {
+            if (!remaining.contains(criterion)) return true;
+        }
+        return false;
     }
 
     private Status statusOf(AdvancementNode node) {
         AdvancementProgress progress = this.progressByNode.get(node);
         if (progress == null) return Status.NONE;
         if (progress.isDone()) return Status.DONE;
-
-        int total = node.advancement().requirements().names().size();
-        Set<String> remaining = new HashSet<>();
-        progress.getRemainingCriteria().forEach(remaining::add);
-        int done = total - remaining.size();
-
-        return done > 0 ? Status.IN_PROGRESS : Status.NONE;
+        return progressCounts(node)[0] > 0 ? Status.IN_PROGRESS : Status.NONE;
     }
 
     private int[] progressCounts(AdvancementNode node) {
-        int total = node.advancement().requirements().names().size();
+        List<List<String>> groups = groupsOf(node);
         AdvancementProgress progress = this.progressByNode.get(node);
-        if (progress == null) return new int[]{0, total};
-        if (progress.isDone()) return new int[]{total, total};
-        Set<String> remaining = new HashSet<>();
-        progress.getRemainingCriteria().forEach(remaining::add);
-        return new int[]{total - remaining.size(), total};
+        if (progress != null && progress.isDone()) return new int[]{groups.size(), groups.size()};
+
+        Set<String> remaining = remainingOf(node);
+        int done = 0;
+        for (List<String> group : groups) {
+            if (isGroupDone(group, remaining)) done++;
+        }
+        return new int[]{done, groups.size()};
     }
 
     private int colorFor(Status status) {
@@ -287,7 +316,7 @@ public class ModAdvancementScreen extends Screen {
         for (AdvancementNode node : this.allAdvancements) {
             boolean matches = switch (tabIndex) {
                 case 0 -> true;
-                case 1 -> favoriteAdvancements.contains(node.holder());
+                case 1 -> isFavorite(node.holder());
                 default -> node.root().holder().equals(this.categories.get(tabIndex - 2));
             };
             if (!matches) continue;
@@ -298,7 +327,7 @@ public class ModAdvancementScreen extends Screen {
     }
 
     private List<AdvancementNode> visibleAdvancements() {
-        String query = this.searchBox == null ? "" : this.searchBox.getValue().toLowerCase(Locale.ROOT); // GUESS: 60% - getValue()
+        String query = this.searchBox == null ? "" : this.searchBox.getValue().toLowerCase(Locale.ROOT);
         List<AdvancementNode> filtered = new ArrayList<>();
 
         for (AdvancementNode node : this.allAdvancements) {
@@ -312,7 +341,7 @@ public class ModAdvancementScreen extends Screen {
 
             boolean tabMatches = switch (this.selection) {
                 case 0 -> true;
-                case 1 -> favoriteAdvancements.contains(node.holder());
+                case 1 -> isFavorite(node.holder());
                 default -> node.root().holder().equals(this.categories.get(this.selection - 2));
             };
 
@@ -351,8 +380,8 @@ public class ModAdvancementScreen extends Screen {
 
         graphics.fill(x + 1, y + 1, x + w - 1, y + 1 + t, topLeft);
         graphics.fill(x + 1, y + 1, x + 1 + t, y + h - 1, topLeft);
-        graphics.fill(x + 1, y + h - 1 - t, x + w - 1, y + h - 1, bottomRight);
-        graphics.fill(x + w - 1 - t, y + 1, x + w - 1, y + h - 1, bottomRight);
+//        graphics.fill(x + 1, y + h - 1 - t, x + w - 1, y + h - 1, bottomRight);
+//        graphics.fill(x + w - 1 - t, y + 1, x + w - 1, y + h - 1, bottomRight);
     }
 
     private void drawIconSlot(GuiGraphicsExtractor graphics, int x, int y, net.minecraft.world.item.ItemStack item, int statusColor) {
@@ -421,7 +450,7 @@ public class ModAdvancementScreen extends Screen {
 
         drawBevelPanel(graphics, this.panelX, this.panelY, this.panelWidth, this.panelHeight, FRAME_COLOR, FRAME_HI, FRAME_LO, false);
 
-        super.extractRenderState(graphics, mouseX, mouseY, delta); // draws buttons + search box
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
 
         graphics.text(this.font, this.getTitle(), this.panelX + 8, this.panelY + (BUTTON_ROW_HEIGHT - this.font.lineHeight) / 2, TITLE_COLOR, false);
 
@@ -437,6 +466,8 @@ public class ModAdvancementScreen extends Screen {
         } else {
             graphics.text(this.font, Component.literal("Select an advancement on the left."), this.detailX + 8, this.listY + 8, MUTED_COLOR, false);
         }
+
+        graphics.outline(this.panelX, this.panelY, this.panelWidth, this.panelHeight, 0xFF000000);
     }
 
     private void renderTabs(GuiGraphicsExtractor graphics) {
@@ -496,7 +527,7 @@ public class ModAdvancementScreen extends Screen {
 
                 int starX = this.listX + 6;
                 int starY = y + (ROW_HEIGHT - 2 - STAR_SIZE) / 2;
-                drawFavoriteStar(graphics, starX, starY, STAR_SIZE, favoriteAdvancements.contains(node.holder()));
+                drawFavoriteStar(graphics, starX, starY, STAR_SIZE, isFavorite(node.holder()));
 
                 int iconX = starX + STAR_SIZE + 6;
                 int iconY = y + (ROW_HEIGHT - 2 - ICON_SIZE) / 2;
@@ -519,7 +550,7 @@ public class ModAdvancementScreen extends Screen {
         int starX = this.detailX + 8;
         int starY = this.listY + WELL_TOP_PADDING + 5;
         drawFavoriteStar(graphics, starX, starY + (ICON_SIZE - DETAIL_STAR_SIZE) / 2, DETAIL_STAR_SIZE,
-                favoriteAdvancements.contains(this.selectedNode.holder()));
+                isFavorite(this.selectedNode.holder()));
 
         int iconX = starX + DETAIL_STAR_SIZE + 8;
         drawIconSlot(graphics, iconX, starY, display.icon().create(), colorFor(status));
@@ -532,56 +563,113 @@ public class ModAdvancementScreen extends Screen {
         drawProgressBar(graphics, this.detailX + 8, barY, this.detailWidth - 16, counts[0], counts[1], status);
 
         int wrapWidth = panelRight - this.detailX - 16;
-        int contentBottom = this.listBottom;
+        int contentBottom = this.listBottom - 2;
+        int y = barY + PROGRESS_BAR_HEIGHT + 6;
 
-        List<FormattedCharSequence> lines = new ArrayList<>();
-        List<Integer> colors = new ArrayList<>();
-
+        // --- Fixed part: description + type ---
         for (FormattedCharSequence line : this.font.split(display.description(), wrapWidth)) {
-            lines.add(line);
-            colors.add(MUTED_COLOR);
-        }
-
-        lines.add(Component.literal("Type: " + typeLabel(display.type())).getVisualOrderText());
-        colors.add(TITLE_COLOR);
-
-        List<String> allCriteria = new ArrayList<>(this.selectedNode.advancement().requirements().names());
-        AdvancementProgress progress = this.progressByNode.get(this.selectedNode);
-        Set<String> remaining = new HashSet<>();
-        if (progress != null) progress.getRemainingCriteria().forEach(remaining::add);
-
-        lines.add(Component.literal("").getVisualOrderText());
-        colors.add(MUTED_COLOR);
-        lines.add(Component.literal("Criteria (" + counts[0] + "/" + counts[1] + "):").getVisualOrderText());
-        colors.add(TITLE_COLOR);
-
-        for (String criterion : allCriteria) {
-            boolean isDone = !remaining.contains(criterion);
-            String prefix = isDone ? "[x] " : "[ ] ";
-            for (FormattedCharSequence line : this.font.split(Component.literal(prefix + humanizeCriterion(criterion)), wrapWidth)) {
-                lines.add(line);
-                colors.add(isDone ? DONE_COLOR : NONE_COLOR);
-            }
-        }
-
-        int maxScroll = Math.max(0, lines.size() * LINE_HEIGHT - (contentBottom - this.detailContentY));
-        this.detailScrollOffset = Math.clamp(this.detailScrollOffset, 0, maxScroll);
-
-        graphics.enableScissor(this.detailX, this.detailContentY, panelRight, contentBottom);
-        int y = this.detailContentY - this.detailScrollOffset;
-        for (int i = 0; i < lines.size(); i++) {
-            if (y + LINE_HEIGHT >= this.detailContentY && y <= contentBottom) {
-                graphics.text(this.font, lines.get(i), this.detailX + 8, y, colors.get(i), false);
-            }
+            graphics.text(this.font, line, this.detailX + 8, y, MUTED_COLOR, false);
             y += LINE_HEIGHT;
         }
+        graphics.text(this.font, "Type: " + typeLabel(display.type()), this.detailX + 8, y, TITLE_COLOR, false);
+        y += LINE_HEIGHT + 4;
+
+        // --- Fixed part: criteria header + "missing only" toggle ---
+        graphics.text(this.font, "Criteria (" + counts[0] + "/" + counts[1] + "):",
+                this.detailX + 8, y + (TOGGLE_HEIGHT - this.font.lineHeight) / 2, TITLE_COLOR, false);
+
+        String toggleLabel = (this.missingOnly ? "[x] " : "[ ] ") + "Missing only";
+        this.toggleW = this.font.width(toggleLabel) + 12;
+        this.toggleH = TOGGLE_HEIGHT;
+        this.toggleX = panelRight - 8 - this.toggleW;
+        this.toggleY = y;
+        drawBevelPanel(graphics, this.toggleX, this.toggleY, this.toggleW, this.toggleH,
+                this.missingOnly ? TAB_SELECTED_COLOR : TAB_COLOR, PLATE_HI, PLATE_LO, false);
+        graphics.text(this.font, toggleLabel, this.toggleX + 6,
+                this.toggleY + (this.toggleH - this.font.lineHeight + 4) / 2,
+                this.missingOnly ? TAB_SELECTED_TEXT_COLOR : 0xFFFFFFFF, false);
+        y += TOGGLE_HEIGHT + 4;
+
+        // --- Scrolling part: only the criteria ---
+        int areaTop = y;
+        int areaHeight = Math.max(0, contentBottom - areaTop);
+        int textWidth = wrapWidth - SCROLLBAR_WIDTH - 4;
+
+        List<CriteriaLine> lines = buildCriteriaLines(this.selectedNode, textWidth);
+        int contentHeight = lines.size() * LINE_HEIGHT;
+        int maxScroll = Math.max(0, contentHeight - areaHeight);
+        this.detailScrollOffset = Math.clamp(this.detailScrollOffset, 0, maxScroll);
+
+        graphics.enableScissor(this.detailX, areaTop, panelRight, contentBottom);
+        int lineY = areaTop - this.detailScrollOffset;
+        for (CriteriaLine line : lines) {
+            if (lineY + LINE_HEIGHT >= areaTop && lineY <= contentBottom) {
+                graphics.text(this.font, line.text(), this.detailX + 8 + line.indent(), lineY, line.color(), false);
+            }
+            lineY += LINE_HEIGHT;
+        }
         graphics.disableScissor();
+
+        // --- Scrollbar (only when there is something to scroll) ---
+        if (maxScroll > 0) {
+            int trackX = panelRight - SCROLLBAR_WIDTH - 4;
+            graphics.fill(trackX, areaTop, trackX + SCROLLBAR_WIDTH, areaTop + areaHeight, SLOT_BG_COLOR);
+            int thumbHeight = Math.max(16, areaHeight * areaHeight / contentHeight);
+            int thumbY = areaTop + (int) ((long) (areaHeight - thumbHeight) * this.detailScrollOffset / maxScroll);
+            graphics.fill(trackX, thumbY, trackX + SCROLLBAR_WIDTH, thumbY + thumbHeight, FRAME_COLOR);
+            graphics.outline(trackX, thumbY, SCROLLBAR_WIDTH, thumbHeight, 0xFF000000);
+        }
+    }
+
+    private List<CriteriaLine> buildCriteriaLines(AdvancementNode node, int width) {
+        List<CriteriaLine> lines = new ArrayList<>();
+        Set<String> remaining = remainingOf(node);
+
+        for (List<String> group : groupsOf(node)) {
+            boolean groupDone = isGroupDone(group, remaining);
+            if (this.missingOnly && groupDone) continue;
+
+            if (group.size() == 1) {
+                // Normal criterion (AND)
+                String criterion = group.getFirst();
+                addWrapped(lines, (groupDone ? "[x] " : "[ ] ") + humanizeCriterion(criterion),
+                        width, 0, groupDone ? DONE_COLOR : NONE_COLOR);
+            } else {
+                // OR group: only ONE of these is needed
+                addWrapped(lines, (groupDone ? "[x] " : "[ ] ") + "Any one of:",
+                        width, 0, groupDone ? DONE_COLOR : NONE_COLOR);
+                for (String criterion : group) {
+                    boolean optionDone = !remaining.contains(criterion);
+                    int color = optionDone ? DONE_COLOR : (groupDone ? MUTED_COLOR : NONE_COLOR);
+                    addWrapped(lines, "- " + humanizeCriterion(criterion), width - 10, 10, color);
+                }
+            }
+        }
+
+        if (lines.isEmpty()) {
+            addWrapped(lines, this.missingOnly ? "Nothing missing!" : "No criteria.", width, 0, MUTED_COLOR);
+        }
+        return lines;
+    }
+
+    private void addWrapped(List<CriteriaLine> lines, String text, int width, int indent, int color) {
+        for (FormattedCharSequence part : this.font.split(Component.literal(text), width)) {
+            lines.add(new CriteriaLine(part, color, indent));
+        }
     }
 
     @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
         double mouseX = event.x();
         double mouseY = event.y();
+
+        if (this.selectedNode != null
+                && mouseX >= this.toggleX && mouseX < this.toggleX + this.toggleW
+                && mouseY >= this.toggleY && mouseY < this.toggleY + this.toggleH) {
+            this.missingOnly = !this.missingOnly;
+            this.detailScrollOffset = 0;
+            return true;
+        }
 
         if (mouseX >= this.tabsX && mouseX < this.tabsX + this.tabsWidth && mouseY >= this.tabsY) {
             int index = (int) ((mouseY - this.tabsY - WELL_TOP_PADDING + this.tabsScrollOffset) / TAB_HEIGHT);
