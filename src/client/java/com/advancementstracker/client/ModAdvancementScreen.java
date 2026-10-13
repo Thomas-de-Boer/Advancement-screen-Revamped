@@ -75,6 +75,8 @@ public class ModAdvancementScreen extends Screen {
     private static final long MARQUEE_PAUSE_MS = 800;
     private static final long MARQUEE_SCROLL_MS = 2500;
     private static final Identifier SHARE_CLICK_ID = Identifier.fromNamespaceAndPath("advancement-screen-revamped", "open_advancement");
+    private static final int MAX_CHAT_LENGTH = 256;
+    private static final String SHARE_DOWNLOAD_SUFFIX = " - Download Advancement screen Revamped to view full message";
 
     private record CriteriaLine(FormattedCharSequence text, int color, int indent) { }
 
@@ -125,15 +127,37 @@ public class ModAdvancementScreen extends Screen {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null) return;
 
-        Component title = holder.value().display().map(DisplayInfo::title).orElse(Component.literal(holder.id().toString()));
-        Component open = Component.literal("[Open]")
+        String title = holder.value().display().map(DisplayInfo::title)
+                .map(Component::getString)
+                .orElse(holder.id().toString());
+        String advancementId = holder.id().toString();
+        String prefix = "[Advancement] ";
+        String suffix = " (" + advancementId + ")" + SHARE_DOWNLOAD_SUFFIX;
+        int titleLength = Math.max(0, MAX_CHAT_LENGTH - prefix.length() - suffix.length());
+        if (title.length() > titleLength) {
+            title = title.substring(0, titleLength);
+        }
+        String publicMessage = prefix + title + suffix;
+
+        if (minecraft.player.connection != null) {
+            minecraft.player.connection.sendChat(publicMessage);
+            return;
+        }
+
+        Component open = Component.literal("Click to open")
                 .withStyle(style -> style
                         .withColor(ChatFormatting.AQUA)
                         .withUnderlined(true)
                         .withClickEvent(new ClickEvent.Custom(
                                 SHARE_CLICK_ID,
-                                Optional.of(StringTag.valueOf(holder.id().toString())))));
-        minecraft.player.sendSystemMessage(Component.literal("Advancement: ").append(title).append(" ").append(open));
+                                Optional.of(StringTag.valueOf(advancementId)))));
+        minecraft.player.sendSystemMessage(
+                Component.literal(minecraft.player.getName().getString() + " shared " + title + " - ").append(open)
+        );
+    }
+
+    public static Identifier shareClickId() {
+        return SHARE_CLICK_ID;
     }
 
     public static void openSharedAdvancement(String advancementId) {
@@ -145,6 +169,11 @@ public class ModAdvancementScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (this.searchBox != null
+                && this.searchBox.isFocused()
+                && this.minecraft.options.keyAdvancements.matches(event)) {
+            return super.keyPressed(event);
+        }
         if (this.minecraft.options.keyAdvancements.matches(event)) {
             this.minecraft.gui.setScreen(null);
             return true;
@@ -710,6 +739,15 @@ public class ModAdvancementScreen extends Screen {
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
         double mouseX = event.x();
         double mouseY = event.y();
+
+        if (this.searchBox != null && this.searchBox.isMouseOver(mouseX, mouseY)) {
+            this.setFocused(this.searchBox);
+            return this.searchBox.mouseClicked(event, doubleClick);
+        }
+
+        if (this.searchBox != null && !this.searchBox.isMouseOver(mouseX, mouseY)) {
+            this.setFocused(null);
+        }
 
         if (this.selectedNode != null
                 && mouseX >= this.toggleX && mouseX < this.toggleX + this.toggleW
