@@ -1,11 +1,17 @@
 package com.advancementstracker.client;
 
 import net.minecraft.advancements.*;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.advancements.AdvancementsScreen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.resources.Identifier;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import net.minecraft.util.FormattedCharSequence;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -64,14 +70,17 @@ public class ModAdvancementScreen extends Screen {
     private static final int HEADER_BUTTON_HEIGHT = 20;
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int TOGGLE_HEIGHT = 14;
+    private static final int SHARE_BUTTON_WIDTH = 58;
 
     private static final long MARQUEE_PAUSE_MS = 800;
     private static final long MARQUEE_SCROLL_MS = 2500;
+    private static final Identifier SHARE_CLICK_ID = Identifier.fromNamespaceAndPath("advancement-screen-revamped", "open_advancement");
 
     private record CriteriaLine(FormattedCharSequence text, int color, int indent) { }
 
     private final List<AdvancementNode> allAdvancements = new ArrayList<>();
     private final Map<AdvancementNode, AdvancementProgress> progressByNode = new LinkedHashMap<>();
+    private final Map<AdvancementNode, String> searchTextByNode = new LinkedHashMap<>();
     private final Map<AdvancementHolder, AdvancementNode> rootsByHolder = new LinkedHashMap<>();
     private final List<AdvancementHolder> categories = new ArrayList<>();
 
@@ -84,10 +93,12 @@ public class ModAdvancementScreen extends Screen {
     private StatusFilter statusFilter;
     private int selection = 0;
     private boolean missingOnly;
+    private final @Nullable String requestedAdvancementId;
 
     private EditBox searchBox;
 
     private int toggleX, toggleY, toggleW, toggleH;
+    private int shareX, shareY, shareW, shareH;
     private int panelX, panelY, panelWidth, panelHeight;
     private int tabsX, tabsY, tabsWidth, tabsBottom;
     private int statusButtonX, themeButtonX, vanillaButtonX, headerButtonY;
@@ -96,6 +107,10 @@ public class ModAdvancementScreen extends Screen {
     private int detailWidth;
 
     public ModAdvancementScreen(Component title) {
+        this(title, null);
+    }
+
+    public ModAdvancementScreen(Component title, @Nullable String requestedAdvancementId) {
         super(title);
         this.theme = Theme.load();
         this.statusFilter = lastStatusFilter;
@@ -103,6 +118,38 @@ public class ModAdvancementScreen extends Screen {
         this.detailScrollOffset = lastDetailScrollOffset;
         this.tabsScrollOffset = lastTabsScrollOffset;
         this.missingOnly = lastMissingOnly;
+        this.requestedAdvancementId = requestedAdvancementId;
+    }
+
+    public static void shareAdvancement(AdvancementHolder holder) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) return;
+
+        Component title = holder.value().display().map(DisplayInfo::title).orElse(Component.literal(holder.id().toString()));
+        Component open = Component.literal("[Open]")
+                .withStyle(style -> style
+                        .withColor(ChatFormatting.AQUA)
+                        .withUnderlined(true)
+                        .withClickEvent(new ClickEvent.Custom(
+                                SHARE_CLICK_ID,
+                                Optional.of(StringTag.valueOf(holder.id().toString())))));
+        minecraft.player.sendSystemMessage(Component.literal("Advancement: ").append(title).append(" ").append(open));
+    }
+
+    public static void openSharedAdvancement(String advancementId) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player != null && Identifier.tryParse(advancementId) != null) {
+            minecraft.gui.setScreen(new ModAdvancementScreen(Component.empty(), advancementId));
+        }
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (this.minecraft.options.keyAdvancements.matches(event)) {
+            this.minecraft.gui.setScreen(null);
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     @Override
@@ -161,6 +208,14 @@ public class ModAdvancementScreen extends Screen {
             for (AdvancementNode node : inTreeOrder) {
                 if (node.advancement().display().isPresent()) {
                     this.allAdvancements.add(node);
+                    DisplayInfo display = node.advancement().display().get();
+                    StringBuilder searchText = new StringBuilder()
+                            .append(display.title().getString()).append('\n')
+                            .append(display.description().getString());
+                    for (String criterion : node.advancement().requirements().names()) {
+                        searchText.append('\n').append(criterion).append('\n').append(humanizeCriterion(criterion));
+                    }
+                    this.searchTextByNode.put(node, searchText.toString().toLowerCase(Locale.ROOT));
                     AdvancementProgress progress = progressMap.get(node.holder());
                     if (progress != null) {
                         this.progressByNode.put(node, progress);
@@ -186,6 +241,14 @@ public class ModAdvancementScreen extends Screen {
             if (lastSelectedAdvancement != null) {
                 for (AdvancementNode node : this.allAdvancements) {
                     if (node.holder().equals(lastSelectedAdvancement)) {
+                        this.selectedNode = node;
+                        break;
+                    }
+                }
+            }
+            if (this.requestedAdvancementId != null) {
+                for (AdvancementNode node : this.allAdvancements) {
+                    if (node.holder().id().toString().equals(this.requestedAdvancementId)) {
                         this.selectedNode = node;
                         break;
                     }
@@ -304,8 +367,7 @@ public class ModAdvancementScreen extends Screen {
                 default -> node.root().holder().equals(this.categories.get(this.selection - 2));
             };
 
-            boolean searchMatches = query.isEmpty()
-                    || node.advancement().display().get().title().getString().toLowerCase(Locale.ROOT).contains(query);
+            boolean searchMatches = query.isEmpty() || this.searchTextByNode.getOrDefault(node, "").contains(query);
 
             if (statusMatches && tabMatches && searchMatches) filtered.add(node);
         }
@@ -445,7 +507,7 @@ public class ModAdvancementScreen extends Screen {
         renderList(graphics);
 
         if (this.selectedNode != null) {
-            renderDetailPanel(graphics, panelRight);
+            renderDetailPanel(graphics, panelRight, mouseX, mouseY);
         } else {
             graphics.text(this.font, Component.literal("Select an advancement on the left."), this.detailX + 8, this.listY + 8, this.theme.muted(), false);
         }
@@ -527,7 +589,7 @@ public class ModAdvancementScreen extends Screen {
         graphics.disableScissor();
     }
 
-    private void renderDetailPanel(GuiGraphicsExtractor graphics, int panelRight) {
+    private void renderDetailPanel(GuiGraphicsExtractor graphics, int panelRight, int mouseX, int mouseY) {
         DisplayInfo display = this.selectedNode.advancement().display().get();
         Status status = statusOf(this.selectedNode);
         int[] counts = progressCounts(this.selectedNode);
@@ -541,7 +603,13 @@ public class ModAdvancementScreen extends Screen {
         drawIconSlot(graphics, iconX, starY, display.icon().create(), colorFor(status));
 
         int titleX = iconX + ICON_SIZE + 10;
-        int titleAvailableWidth = panelRight - titleX - 8;
+        this.shareX = panelRight - 8 - SHARE_BUTTON_WIDTH;
+        this.shareY = starY;
+        this.shareW = SHARE_BUTTON_WIDTH;
+        this.shareH = HEADER_BUTTON_HEIGHT;
+        drawButton(graphics, this.shareX, this.shareY, this.shareW, "Share",
+                isInside(mouseX, mouseY, this.shareX, this.shareY, this.shareW));
+        int titleAvailableWidth = this.shareX - titleX - 6;
         drawMarqueeText(graphics, display.title().getVisualOrderText(), titleX, starY + 2, titleAvailableWidth, colorFor(status), true);
 
         int barY = starY + ICON_SIZE + 10;
@@ -699,6 +767,12 @@ public class ModAdvancementScreen extends Screen {
         }
 
         if (this.selectedNode != null) {
+            if (isInside(mouseX, mouseY, this.shareX, this.shareY, this.shareW)) {
+                shareAdvancement(this.selectedNode.holder());
+                this.minecraft.gui.setScreen(null);
+                return true;
+            }
+
             int starX = this.detailX + 8;
             int starY = this.listY + WELL_TOP_PADDING + 5 + (ICON_SIZE - DETAIL_STAR_SIZE) / 2;
             if (mouseX >= starX && mouseX < starX + DETAIL_STAR_SIZE && mouseY >= starY && mouseY < starY + DETAIL_STAR_SIZE) {

@@ -10,4 +10,4 @@ pluginManagement {
 }
 
 // Should match your modid
-rootProject.name = 'advancements-tracker'
+rootProject.name = 'advancement-screen-revamped'

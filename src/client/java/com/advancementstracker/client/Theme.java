@@ -101,12 +101,12 @@ public record Theme(
             0xFFEAF1FF, // progressLabel
             0xFF8294B5, // muted
             0xFF5EE08A, // done
-            0xFFFFC857, // progress
+            0xFF6FA8FF, // progress
             0xFFC5D0E5, // none
             0xFF0D1729, // progressBg
             0xFF26477D, // progressTrackRing
-            0xFFFFC83D, // favorite
-            0xFF806000, // favoriteOutline
+            0xFF78B7FF, // favorite
+            0xFF2E5F9E, // favoriteOutline
             0xFF111C30, // favoriteEmptyFill
             0xFF48628B, // favoriteEmpty
             0xFF080F1D, // scrollbarTrack
@@ -185,8 +185,8 @@ public record Theme(
             0xFFD5CEE2, // none
             0xFF181322, // progressBg
             0xFF493667, // progressTrackRing
-            0xFFFFC857, // favorite
-            0xFF806000, // favoriteOutline
+            0xFFD39BFF, // favorite
+            0xFF7048A0, // favoriteOutline
             0xFF21172B, // favoriteEmptyFill
             0xFF604A70, // favoriteEmpty
             0xFF100C16, // scrollbarTrack
@@ -224,7 +224,7 @@ public record Theme(
             0xFFD8C4AD, // none
             0xFF1D0D04, // progressBg
             0xFF66300B, // progressTrackRing
-            0xFFFFC43D, // favorite
+            0xFFFFD166, // favorite
             0xFF8A5D0C, // favoriteOutline
             0xFF291507, // favoriteEmptyFill
             0xFF6B4928, // favoriteEmpty
@@ -264,8 +264,8 @@ public record Theme(
             0xFFC5DCCB, // none
             0xFF0A1D10, // progressBg
             0xFF1B5A32, // progressTrackRing
-            0xFFFFC857, // favorite
-            0xFF806000, // favoriteOutline
+            0xFF75F0A5, // favorite
+            0xFF207D4C, // favoriteOutline
             0xFF102817, // favoriteEmptyFill
             0xFF39704D, // favoriteEmpty
             0xFF050D08, // scrollbarTrack
@@ -303,8 +303,8 @@ public record Theme(
             0xFFB5E8EF, // none
             0xFF133A40, // progressBg
             0xFF1C636E, // progressTrackRing
-            0xFF00F0FF, // favorite
-            0xFF008094, // favoriteOutline
+            0xFF8BE9FF, // favorite
+            0xFF2A8798, // favoriteOutline
             0xFF163E44, // favoriteEmptyFill
             0xFF2C717C, // favoriteEmpty
             0xFF103338, // scrollbarTrack
@@ -363,7 +363,7 @@ public record Theme(
         return FabricLoader.getInstance().getConfigDir().resolve("advancementstracker-theme.txt");
     }
 
-    /** Loads the saved theme. Falls back to BLUE if nothing is saved yet. */
+    /** Loads the saved theme. Falls back to Vanilla if nothing is saved yet. */
     public static Theme load() {
         try {
             Path path = file();

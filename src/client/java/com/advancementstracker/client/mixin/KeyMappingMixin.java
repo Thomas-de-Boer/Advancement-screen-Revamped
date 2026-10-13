@@ -12,22 +12,16 @@ import com.advancementstracker.client.ModAdvancementScreen;
 @Mixin(KeyMapping.class)
 public abstract class KeyMappingMixin {
 
-    @Inject(method = "consumeClick", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "consumeClick", at = @At("RETURN"), cancellable = true)
     private void overrideKeyClick(CallbackInfoReturnable<Boolean> cir) {
         KeyMapping self = (KeyMapping) (Object) this;
 
-        if ("key.advancements".equals(self.getName())) {
+        if ("key.advancements".equals(self.getName()) && cir.getReturnValue()) {
             Minecraft client = Minecraft.getInstance();
-            if (client.player != null) {
-
-                if (client.options.keyAdvancements.isDown()) {
-                    Minecraft.getInstance().gui.setScreen(
-                            new ModAdvancementScreen(Component.empty())
-                    );
-                }
-
+            if (client.player != null && !(client.gui.screen() instanceof ModAdvancementScreen)) {
+                client.gui.setScreen(new ModAdvancementScreen(Component.empty()));
+                cir.setReturnValue(false);
             }
-            cir.setReturnValue(false);
         }
     }
 }
